@@ -1,0 +1,13 @@
+
+kpiffmpeg
+=========
+
+任意の音楽ファイルを FFmpeg でデコードさせる KbMedia Player プラグインで
+す。対応する拡張子は FFmpeg がサポートするものであれば何でも設定すること
+ができます。
+
+[kpiffmpeg]
+exts=foo/bar/baz/quux
+FastSeek=1/0
+DisableTags=ext/ext/ext
+
