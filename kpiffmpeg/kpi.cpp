@@ -28,7 +28,8 @@ HKMP WINAPI kpiOpen(const char* cszFileName, SOUNDINFO* pInfo)
 void WINAPI kpiClose(HKMP hKMP)
 {
 	CAbstractKpi* d = (CAbstractKpi*)hKMP;
-	if (d) {
+	if (d)
+	{
 		d->Close();
 		delete d;
 	}
@@ -58,6 +59,17 @@ UINT GetMyProfileInt(LPSTR szSectionName, LPSTR szKeyName, INT nDefault)
 DWORD GetMyProfileString(LPSTR szSectionName, LPSTR szKeyName, LPCSTR cszDefault, LPSTR szResult, DWORD dwSize)
 {
 	return ::GetPrivateProfileString(szSectionName, szKeyName, cszDefault, szResult, dwSize, ::g_szIniFileName);
+}
+
+DWORD GetMyProfileString(LPSTR szSectionName, LPSTR szKeyName, LPCSTR cszDefault, DWORD dwMaxSize, std::string& result)
+{
+	char* buffer = new char[dwMaxSize];
+	DWORD dwSize;
+
+	dwSize = GetMyProfileString(szSectionName, szKeyName, cszDefault, buffer, dwMaxSize);
+	result = std::string(buffer);
+	delete[] buffer;
+	return dwSize;
 }
 
 BOOL WINAPI kpiGetTagInfo(const char *cszFileName, IKmpTagInfo *pTagInfo)

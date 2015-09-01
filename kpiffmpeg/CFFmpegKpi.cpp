@@ -2,6 +2,9 @@
 #include "CFFmpegKpi.h"
 #include "kpi.h"
 
+extern HMODULE g_hModule; // dllmain.cpp
+extern std::string defaultFFmpegPath, defaultFFprobePath; // dllmain.cpp
+
 CFFmpegKpi::CFFmpegKpi() : stdoutPipe(), filename()
 {
 	::ZeroMemory(&procInfo, sizeof procInfo);
@@ -128,15 +131,48 @@ DWORD CFFmpegKpi::SetPosition(DWORD dwPos)
 	return dwPos;
 }
 
-int CFFmpegKpi::get_pcmformat(const char* prefix, int bps, char* buffer, int size)
+bool CFFmpegKpi::FileExists(const char* cszFileName)
 {
-	return _snprintf_s(buffer, size, size, "%s%c%d%s",
-		prefix,
+	HANDLE hFile;
+
+	hFile = ::CreateFile(cszFileName, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (hFile == INVALID_HANDLE_VALUE)
+	{
+		return false;
+	}
+	else
+	{
+		::CloseHandle(hFile);
+		return true;
+	}
+}
+
+std::string CFFmpegKpi::getPCMFormat(int bps)
+{
+	char format[256];
+
+	_snprintf_s(format, sizeof format, "%c%d%s",
 		bps < 0 ? 'f' : 's',
 		bps < 0 ? -bps : bps,
 		bps == 8 ? "" : "le");
+
+	return std::string(format);
 }
 
+
+std::string CFFmpegKpi::DecideWhichFFToUse(LPSTR iniKeyName, LPSTR defaultExeName, std::string& localOverridePath)
+{
+	std::string result;
+
+	if (FileExists(localOverridePath.c_str()))
+	{
+		return localOverridePath;
+	}
+
+	GetMyProfileString("kpiffmpeg", iniKeyName, defaultExeName, MAX_PATH, result);
+
+	return result;
+}
 
 std::string CFFmpegKpi::createFFmpegCommandLine(LPSTR szFileName, SOUNDINFO* pInfo, DWORD dwPos)
 {
@@ -144,6 +180,10 @@ std::string CFFmpegKpi::createFFmpegCommandLine(LPSTR szFileName, SOUNDINFO* pIn
 	std::vector<std::string> cmdline;
 	int bps = 16;
 	int seekPrecision = GetMyProfileInt("kpiffmpeg", "SeekPrecision", 0);
+	std::string ffmpeg;
+	std::string pcmFormat;
+	
+	ffmpeg = DecideWhichFFToUse("ffmpeg", "ffmpeg.exe", defaultFFmpegPath);
 
 	switch (pInfo->dwBitsPerSample)
 	{
@@ -159,13 +199,15 @@ std::string CFFmpegKpi::createFFmpegCommandLine(LPSTR szFileName, SOUNDINFO* pIn
 		bps = pInfo->dwBitsPerSample = 16;
 	}
 
+	pcmFormat = getPCMFormat(bps);
+
 	_snprintf_s(pos, sizeof pos, "%d:%02d:%02d.%04d",
 		dwPos / (1000 * 60 * 60),
 		(dwPos / (1000 * 60)) % 60,
 		(dwPos / 1000) % 60,
 		dwPos % 1000);
 
-	cmdline.push_back("ffmpeg");
+	cmdline.push_back(ffmpeg);
 	cmdline.push_back("-hide_banner");
 	cmdline.push_back("-y");
 	//#ifdef _DEBUG
@@ -173,23 +215,21 @@ std::string CFFmpegKpi::createFFmpegCommandLine(LPSTR szFileName, SOUNDINFO* pIn
 	//#endif
 	cmdline.push_back("-v");
 	cmdline.push_back("-8");
-	if (seekPrecision == 0) {
+	if (seekPrecision == 0)
+	{
 		cmdline.push_back("-ss");
 		cmdline.push_back(pos);
 	}
 	cmdline.push_back("-i");
 	cmdline.push_back(szFileName);
-	if (seekPrecision != 0) {
+	if (seekPrecision != 0)
+	{
 		cmdline.push_back("-ss");
 		cmdline.push_back(pos);
 	}
 	cmdline.push_back("-vn");
 	cmdline.push_back("-f");
-	{
-		char format[64];
-		get_pcmformat("", bps, format, sizeof format);
-		cmdline.push_back(format);
-	}
+	cmdline.push_back(pcmFormat);
 	cmdline.push_back("-ac");
 	{
 		char channels[8];
@@ -203,11 +243,7 @@ std::string CFFmpegKpi::createFFmpegCommandLine(LPSTR szFileName, SOUNDINFO* pIn
 		cmdline.push_back(fs);
 	}
 	cmdline.push_back("-acodec");
-	{
-		char format[64];
-		get_pcmformat("pcm_", bps, format, sizeof format);
-		cmdline.push_back(format);
-	}
+	cmdline.push_back("pcm_" + pcmFormat);
 	cmdline.push_back("-");
 
 	std::string result;
@@ -225,8 +261,11 @@ std::string CFFmpegKpi::createFFmpegCommandLine(LPSTR szFileName, SOUNDINFO* pIn
 std::string CFFmpegKpi::createFFprobeCommandLine(LPSTR szFileName)
 {
 	std::vector<std::string> cmdline;
+	std::string ffprobe;
+	
+	ffprobe = DecideWhichFFToUse("ffprobe", "ffprobe.exe", defaultFFprobePath);
 
-	cmdline.push_back("ffprobe");
+	cmdline.push_back(ffprobe);
 	cmdline.push_back("-hide_banner");
 	//#ifdef _DEBUG
 	//	cmdline.push_back("-report");
@@ -281,7 +320,7 @@ BOOL CFFmpegKpi::startFFmpeg(std::string command)
 	startupInfo.cb = sizeof(STARTUPINFO);
 	startupInfo.hStdInput = hNUL;
 	startupInfo.hStdOutput = stdoutPipe.hPipeWrite;
-	startupInfo.hStdError = NULL;
+	startupInfo.hStdError = hNUL;
 	startupInfo.wShowWindow = SW_HIDE;
 	startupInfo.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
 
@@ -378,7 +417,8 @@ CFFmpegKpi::taginfo CFFmpegKpi::getTagMap(const char * cszFileName)
 
 	std::string cmdline_probe = createFFprobeCommandLine((LPSTR)cszFileName);
 	std::string probe = captureFFprobe(cmdline_probe);
-	if (probe.length() > 0) {
+	if (probe.length() > 0)
+	{
 		std::regex re("^([^=]+)=\"?(.*?)\"?$");
 		std::smatch match;
 		size_t offset = 0;

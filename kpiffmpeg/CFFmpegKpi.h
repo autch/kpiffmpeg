@@ -27,14 +27,16 @@ struct Pipe
 	}
 	void CloseRead()
 	{
-		if (hPipeRead != INVALID_HANDLE_VALUE) {
+		if (hPipeRead != INVALID_HANDLE_VALUE)
+		{
 			::CloseHandle(hPipeRead);
 			hPipeRead = INVALID_HANDLE_VALUE;
 		}
 	}
 	void CloseWrite()
 	{
-		if (hPipeWrite != INVALID_HANDLE_VALUE) {
+		if (hPipeWrite != INVALID_HANDLE_VALUE)
+		{
 			::CloseHandle(hPipeWrite);
 			hPipeWrite = INVALID_HANDLE_VALUE;
 		}
@@ -85,13 +87,17 @@ private:
 	std::string filename;
 	CriticalSection cs;
 
+	std::string CFFmpegKpi::getPCMFormat(int bps);
+
 	std::string createFFmpegCommandLine(LPSTR szFileName, SOUNDINFO* pInfo, DWORD dwPos);
-	static std::string createFFprobeCommandLine(LPSTR szFileName);
 	BOOL startFFmpeg(std::string command);
+
+	static std::string createFFprobeCommandLine(LPSTR szFileName);
 	static std::string captureFFprobe(std::string command);
 	static taginfo getTagMap(const char* cszFileName);
+	static std::string DecideWhichFFToUse(LPSTR iniKeyName, LPSTR defaultExeName, std::string & localOverridePath);
+	static bool FileExists(const char* szFileName);
 
-	int get_pcmformat(const char* prefix, int bps, char* buffer, int size);
 public:
 	CFFmpegKpi();
 	virtual ~CFFmpegKpi();
@@ -100,6 +106,7 @@ public:
 	virtual void Close();
 	virtual DWORD Render(BYTE* buffer, DWORD dwSize);
 	virtual DWORD SetPosition(DWORD dwPos);
+
 
 	void Stop();
 

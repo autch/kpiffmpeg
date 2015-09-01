@@ -12,5 +12,6 @@ DWORD WINAPI kpiSetPosition(HKMP hKMP, DWORD dwPos);
 
 UINT GetMyProfileInt(LPSTR szSectionName, LPSTR szKeyName, INT nDefault = 0);
 DWORD GetMyProfileString(LPSTR szSectionName, LPSTR szKeyName, LPCSTR cszDefault, LPSTR szResult, DWORD dwSize);
+DWORD GetMyProfileString(LPSTR szSectionName, LPSTR szKeyName, LPCSTR cszDefault, DWORD dwMaxSize, std::string& result);
 
 BOOL WINAPI kpiGetTagInfo(const char *cszFileName, IKmpTagInfo *pTagInfo);

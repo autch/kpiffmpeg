@@ -2,12 +2,107 @@
 kpiffmpeg
 =========
 
-任意の音楽ファイルを FFmpeg でデコードさせる KbMedia Player プラグインで
-す。対応する拡張子は FFmpeg がサポートするものであれば何でも設定すること
-ができます。
+音楽ファイルのデコードを FFmpeg (https://www.ffmpeg.org/) に丸投げする 
+KbMedia Player プラグインです。対応する拡張子は FFmpeg がサポートするも
+のであれば何でも設定することができます。
 
+
+用意するもの
+------------
+
+最低限 ffmpeg.exe が必要です。ライセンス及び特許の関係から、本プラグイン
+には同梱していませんので、あらかじめ入手しておいてください。FFmpeg 公式
+サイトから入手できますし、誰かがビルドしたバイナリでも、ご自分でビルドさ
+れたものでも構いません。32/64bit 版どちらでも（動きさえすれば）構いませ
+ん。
+
+タグ情報や曲の長さを取得するには ffprobe.exe が追加で必要です。
+
+これらを kpiffmpeg.kpi と同じディレクトリか、PATH の通ったディレクトリに
+おいてください。
+
+次に kpiffmpeg.ini というファイルを kpiffmpeg.kpi と同じディレクトリに作
+り、以下のように書いてください。
+
+--------
 [kpiffmpeg]
+exts=...
+--------
+
+exts= の値は、プラグインに再生させるファイル拡張子のリストです。ドットを
+省き、/ で区切ります。たとえば .dsf, .dff, .m4a ファイルを再生させるには
+次のように書きます。
+
+--------
+[kpiffmpeg]
+exts=dsf/dff/m4a
+--------
+
+これで KbMedia Player を起動すれば、dsf, dff, m4a ファイルを再生できるよ
+うになっているはずです。
+
+
+ini ファイル
+------------
+
+kpiffmpeg.ini ファイルには以下の設定を書くことができます。
+
+--------
+[kpiffmpeg]
+; 対応させたいファイルの拡張子の . を省いて / で区切って列挙する。
+; 変更は次回プラグインを読み込んだ時に反映される。
 exts=foo/bar/baz/quux
-FastSeek=1/0
+
+; シークの精度と速度のバランスを設定する。設定できる値は 1 か 0
+; 1 のとき：シーク位置までダミーのデコードを繰り返す。正確だが遅い。
+; 0 のとき：入力ファイルを読み飛ばすことでシークしようとする。高速だが粗い。
+; デフォルトは 0 で、変更はファイルを開きなおすと反映される。
+SeekPrecision=1/0
+
+; タグ情報を取得したくないファイルの拡張子を、exts= と同じ形式で列挙する。
+; ここに書かれた拡張子のファイルはタグ情報取得を行わない。
+; ffprobe によるタグ情報の取得は遅いので、Media エクスプローラなどでの操
+; 作に支障をきたすようなときに設定する。
+; DisableTags=* とだけ指定すると、すべてのファイルのタグ取得を行わなくなる。
+; デフォルトは空で、変更は次回プラグインを読み込んだときに反映される。
 DisableTags=ext/ext/ext
 
+; ffmpeg.exe へのフルパスを指定する。
+; kpiffmpeg.kpi と同じディレクトリに ffmpeg.exe を置いた場合は常にそちらが
+; 優先され、この値は使われない。
+; デフォルトは ffmpeg.exe（PATHが通っていることを期待する）で、変更は
+; ファイルを開きなおすと反映される。
+ffmpeg=c:\path\to\ffmpeg.exe
+
+; ffprobe.exe へのフルパスを指定する。
+; kpiffmpeg.kpi と同じディレクトリに ffprobe.exe を置いた場合は常にそちらが
+; 優先され、この値は使われない。
+; デフォルトは ffprobe.exe（PATHが通っていることを期待する）で、変更は
+; 次回タグ情報を取得する際に反映される。
+ffprobe=c:\path\to\ffprobe.exe
+--------
+
+
+コマンドライン
+--------------
+
+kpiffmpeg.kpi は以下のコマンドで ffmpeg.exe を起動します。
+
+SeekPrecision=1 のとき:
+	ffmpeg -hide_banner -y -v -8 -i FILENAME -ss POS -vn -f FORMAT -ac CHANNELS -ar SAMPLERATE -acodec CODEC -
+SeekPrecision=0 のとき:
+	ffmpeg -hide_banner -y -v -8 -ss POS -i FILENAME -vn -f FORMAT -ac CHANNELS -ar SAMPLERATE -acodec CODEC -
+
+FORMAT, CODEC はそれぞれ、SOUNDINFO::dwBitsPerSample が、
+	  0 のとき：FORMAT="s16le", CODEC="pcm_s16le"
+	  8 のとき：FORMAT="s8",    CODEC="pcm_s8"
+	 16 のとき：FORMAT="s16le", CODEC="pcm_s16le"
+	 24 のとき：FORMAT="s24le", CODEC="pcm_s24le"
+	 32 のとき：FORMAT="s32le", CODEC="pcm_s32le"
+	-32 のとき：FORMAT="f32le", CODEC="pcm_f32le"
+	-64 のとき：FORMAT="f64le", CODEC="pcm_f64le"
+
+
+ffprobe.exe のコマンドラインは以下の通りです。
+
+ffprobe -hide_banner -v -8 -show_format -show_streams -of flat FILENAME
