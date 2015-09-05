@@ -86,7 +86,8 @@ ffprobe=c:\path\to\ffprobe.exe
 コマンドライン
 --------------
 
-kpiffmpeg.kpi は以下のコマンドで ffmpeg.exe を起動します。
+kpiffmpeg.kpi は以下のコマンドで ffmpeg.exe を起動し、標準出力から得られ
+た PCM をパイプで読み取って KbMedia Player へ返します。
 
 SeekPrecision=1 のとき:
 	ffmpeg -hide_banner -y -v -8 -i FILENAME -ss POS -vn -f FORMAT -ac CHANNELS -ar SAMPLERATE -acodec CODEC -
@@ -103,6 +104,41 @@ FORMAT, CODEC はそれぞれ、SOUNDINFO::dwBitsPerSample が、
 	-64 のとき：FORMAT="f64le", CODEC="pcm_f64le"
 
 
-ffprobe.exe のコマンドラインは以下の通りです。
+ffprobe.exe のコマンドラインは以下の通りです。このコマンドの標準出力から
+得られた内容をパイプで読み取って KbMeid Player へ返します。
 
 ffprobe -hide_banner -v -8 -show_format -show_streams -of flat FILENAME
+
+
+ライセンス
+----------
+
+kpiffmpeg.kpi -- FFmpeg adapter plugin for KbMedia Player
+Copyright(c) 2015, Autch.net
+
+kpiffmpeg.kpi は MIT ライセンスで配布されます。LICENSE.txt ファイルをご
+覧ください。
+
+
+ソースコード
+------------
+
+ソースコードは以下の GitHub リポジトリから入手できます。
+
+	https://github.com/autch/kpiffmpeg
+
+Visual Studio 2015 Comminuty でビルドしています。
+
+
+更新履歴
+--------
+
+v1.0.0 (65536) 2015.09.06
+
+ * 初版。DSD の PCM 変換再生と ALAC を再生したくて作った。
+
+
+----
+Autch
+http://www.autch.net/
+https://github.com/autch
